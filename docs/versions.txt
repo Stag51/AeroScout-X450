@@ -1,0 +1,28 @@
+Collected: 2026-10-27T11:39:03Z
+--- OS
+Description:	Ubuntu 22.04.5 LTS
+6.18.33.2-microsoft-standard-WSL2
+--- PX4 commit
+7c005f77970e3a8e84dc533a77c43b44e2286867
+v1.18.0-beta1-1291-g7c005f7797
+--- Gazebo
+Gazebo Sim, version 8.15.0
+Copyright (C) 2018 Open Source Robotics Foundation.
+--- ROS
+humble
+ros-humble-cv-bridge 3.2.1-1jammy.20260907.220118
+ros-humble-desktop 0.10.0-1jammy.20260916.003705
+ros-humble-ros-gzharmonic 0.244.12-3jammy
+--- Micro XRCE-DDS Agent
+v2.4.2
+--- px4_msgs
+2e892300d8c20d3c29e198e324a10854b40ab8d3
+--- Python
+Python 3.10.12
+numpy                                1.26.4
+opencv-python                        4.11.0.86
+torch                                2.14.1
+torchvision                          0.29.1
+ultralytics                          8.4.190
+--- GPU
+NVIDIA GeForce GTX 1650, 616.92

@@ -1,0 +1,13 @@
+# SolidWorks temp/lock files
+~$*
+*.tmp
+*.swp
+# Python
+__pycache__/
+*.pyc
+# downloaded model weights and logs
+yolov8n.pt
+*.log
+*.ulg
+# local screenshots written by snap.py
+annotated.png
