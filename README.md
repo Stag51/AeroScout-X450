@@ -23,6 +23,28 @@ Gazebo camera --> ROS 2 image --> YOLOv8n person detector --> tracker --> PX4 of
 In the logged run, altitude stayed within 1.4-1.5 m and the person stayed within 40-60 % of the image width.
 The person's size in the frame swings as the person turns around, because the simple proportional controller lags behind them.
 
+## Measured: distance to the person from one camera
+
+![distance estimate vs Gazebo truth](media/distance_demo.gif)
+
+The drone estimates how far the person is from a single camera image, using the bottom of the YOLO box,
+the camera height, and the drone's roll and pitch (ground-plane geometry). The estimate is compared with
+Gazebo's true positions. Flight 3 (1,326 frames, person 2.7-6.1 m away) was **not used to fit anything**:
+
+| Method | Mean abs error | Relative | 95th percentile | Worst |
+|---|---|---|---|---|
+| Old: box height as distance proxy | 0.277 m | 7.2 % | 0.59 m | 1.13 m |
+| Ground-plane geometry, uncorrected | 0.231 m | 6.0 % | 0.44 m | 0.98 m |
+| Ground-plane geometry, calibrated | **0.123 m** | **3.1 %** | 0.27 m | 0.82 m |
+
+Method, plots, error by range and the limits are in [analysis/RESULTS.md](analysis/RESULTS.md).
+How to repeat it: [docs/MEASURE_DISTANCE.md](docs/MEASURE_DISTANCE.md).
+
+What this does and does not show: three flights, one simulated person, one path, flat ground, one camera model.
+The raw geometry reads about 0.23 m short and the cause is not found, so the two calibration constants are an
+empirical fix, not proven physics; they may not transfer to another camera or scene. **The tracker does not use
+this estimate yet** (it still uses the box-height proxy).
+
 ## The drone
 
 | Item | Choice |
@@ -47,12 +69,13 @@ post length, legs) must be checked against the real parts before anything is bou
 | `parts/` and the assembly | SolidWorks parts and the drone assembly (the CAD source) |
 | `cad_export/stl/` | The 34 STL files exported from the assembly, one per part (millimetres) |
 | `sim/build_aeroscout_model.py` | Builds the Gazebo model and PX4 airframe from the STL files and CAD numbers |
-| `ros/` | ROS 2 nodes: take-off test, YOLO detector, person tracker, walking-person mover, viewers |
+| `ros/` | ROS 2 nodes: take-off test, YOLO detector, person tracker, walking-person mover, distance estimator, logger, viewers |
+| `analysis/` | Flight logs (CSV), analysis scripts, plots and [RESULTS.md](analysis/RESULTS.md) for the distance measurement |
 | `scripts/` | One small script per terminal, so you can run the demo without retyping commands |
 | `bom/` | Bill of materials spreadsheet |
 | `x500_ref/` | Copies of PX4's x500 files used as the starting point for the model (BSD-3, from PX4) |
-| `docs/` | Setup, running, CAD notes, troubleshooting, and the exact software versions used |
-| `media/` | Demo video and GIF |
+| `docs/` | Setup, running, distance measurement, CAD notes, troubleshooting, and the exact software versions used |
+| `media/` | Demo videos and GIFs |
 
 ## Quick start
 
@@ -70,6 +93,11 @@ bash scripts/3_world.sh        # spawns the person and starts the camera bridge
 bash scripts/4_detector.sh     # YOLO
 bash scripts/5_tracker.sh      # take off and track
 bash scripts/6_walker.sh       # makes the person walk
+
+# optional, to measure distance estimation (see docs/MEASURE_DISTANCE.md):
+bash scripts/8_pose_bridge.sh  # Gazebo ground truth into ROS 2
+bash scripts/9_estimator.sh    # distance estimate
+bash scripts/10_logger.sh      # log estimate vs truth to ~/aero_logs
 ```
 
 ## How the CAD becomes a simulator model
@@ -92,13 +120,17 @@ More detail is in [docs/CAD_NOTES.md](docs/CAD_NOTES.md).
 * The tracker is a simple proportional controller using the person's size for distance. It is not a full tracker
   (no velocity estimate, no re-identification between several people, picks the largest person).
 * The "person" is a Gazebo model moved along a fixed path.
+* Distance estimation: tested on 3 flights with one person on flat ground; the calibration cause is unexplained
+  (see above). Estimates right after take-off (below 1 m altitude) are unreliable.
 
 ## Next steps
 
+* Tracker v2: Kalman filter on the target, ByteTrack for identity, smoother control, and measured
+  tracking error and lost-target recovery. Feed it the new distance estimate.
+* Find the cause of the 0.23 m bias in the distance geometry, and test on a different camera/scene.
 * Resolve the VERIFY items in the BOM, then order parts.
 * Add thrust and battery data for the real motor, propeller and 4S pack.
 * Bring up the Jetson and Pixhawk on a bench (serial link, MAVLink or XRCE-DDS) before any flight.
-* Improve distance control (damping or a feed-forward term).
 
 ## Credits
 

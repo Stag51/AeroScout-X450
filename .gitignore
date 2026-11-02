@@ -11,3 +11,8 @@ yolov8n.pt
 *.ulg
 # local screenshots written by snap.py
 annotated.png
+
+# local run output
+aero_logs/
+aero_videos/
+.vscode/

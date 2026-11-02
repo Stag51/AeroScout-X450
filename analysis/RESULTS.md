@@ -7,7 +7,7 @@ height and tilt? Everything here is **simulation**. Truth comes from Gazebo.
 
 The bottom of the YOLO box is where the person's feet touch the ground. The camera's height and tilt are
 known from PX4, so the pixel row of the feet gives an angle below the horizon, and the ground-plane
-geometry turns that angle into a distance (`analysis/distance_estimator.py`).
+geometry turns that angle into a distance (`ros/distance_estimator.py`).
 
 The **old method** used the box height only: `distance = k / box_height`, with `k` fitted once on flight 1.
 

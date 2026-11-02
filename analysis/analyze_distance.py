@@ -2,6 +2,8 @@
 """Compare distance estimates with Gazebo ground truth from a metrics_logger CSV.
 usage: python3 analyze_distance.py flight.csv [lag_samples]
 """
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ros"))
 import csv, math, statistics as st, sys
 from distance_estimator import ground_distance, height_proxy
 

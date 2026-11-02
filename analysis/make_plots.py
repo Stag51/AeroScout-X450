@@ -3,6 +3,8 @@
 usage: python3 make_plots.py flight3.csv [output_folder]
 The 'old method' is range = K_OLD / box_height, with K_OLD fitted on flight 1 and not changed since.
 """
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ros"))
 import csv, math, os, statistics as st, sys
 import matplotlib
 matplotlib.use('Agg')

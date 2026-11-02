@@ -46,3 +46,8 @@ The constants are at the top of `ros/person_tracker.py`:
 | `K_YAW` | Turn rate per image-width of error |
 | `K_FWD` | Forward speed per unit of size error |
 | `TRACK_SECONDS` | Time before the tracker lands by itself |
+
+## Measuring distance estimation (optional)
+
+With terminals 1-6 running, see [MEASURE_DISTANCE.md](MEASURE_DISTANCE.md) for the extra terminals
+(`scripts/8_pose_bridge.sh`, `9_estimator.sh`, `10_logger.sh`, `11_recorder.sh`) and the analysis commands.

@@ -10,5 +10,12 @@ These files are copied from the working WSL install by `scripts/collect_from_wsl
 | `move_target.py` | Walks the simulated person back and forth |
 | `snap.py` | Saves one annotated frame as a PNG |
 | `view.py` | Live window of the annotated camera image |
+| `distance_estimator.py` | Ground-plane distance maths (pure functions, no ROS) |
+| `distance_estimator_node.py` | Publishes `/target/estimate` from the box, PX4 attitude and altitude |
+| `metrics_logger.py` | Logs estimate vs Gazebo ground truth to CSV at 10 Hz |
+| `record_distance.py` | Records the camera view with a live distance overlay |
 
 `/target/bbox` is a `Float32MultiArray`: `[found, cx, cy, w, h, conf]`, all normalised to the image.
+
+`/target/estimate` is a `Float32MultiArray`: `[valid, range, ground, fwd, lat, cam_height, roll_deg, pitch_down_deg]`
+(see [docs/MEASURE_DISTANCE.md](../docs/MEASURE_DISTANCE.md)).
