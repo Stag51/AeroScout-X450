@@ -2,6 +2,7 @@
 """AeroScout X450 - live distance estimate from the person's box (ground-plane geometry).
 
 Subscribes: /target/bbox, /fmu/out/vehicle_attitude, /fmu/out/vehicle_local_position_v1
+Calibration: fy_scale, v_offset, base_z parameters (defaults are the values fitted on flights 1-2).
 Publishes:  /target/estimate = [valid, range, ground, fwd, lat, cam_height, roll_deg, pitch_down_deg]
             range = camera to feet, ground = horizontal distance, fwd/lat = in the drone's heading
             frame (lat positive to the left). All metres. valid = 0 means no estimate this time.
@@ -15,6 +16,11 @@ from std_msgs.msg import Float32MultiArray
 from px4_msgs.msg import VehicleAttitude, VehicleLocalPosition
 
 from distance_estimator import ground_distance, px4_roll_pitch_down, camera_height
+
+# Calibration measured on flights 1 and 2 (see analysis/). Change with --ros-args -p name:=value.
+FY_SCALE = 1.18   # vertical focal-length multiplier   (fitted on flight 1)
+V_OFFSET = 0.022  # box-bottom shift, fraction of image height = 21 px (fitted on flight 1)
+BASE_Z = 0.053    # drone origin height at rest, metres (0.087 minus the 3.4 cm PX4 offset seen on flight 2)
 
 MAX_AGE = 0.3     # seconds: ignore PX4 data older than this
 NAN = float('nan')
@@ -30,10 +36,17 @@ class DistanceEstimator(Node):
         self.create_subscription(VehicleLocalPosition, '/fmu/out/vehicle_local_position_v1', self.on_pos, qos)
         self.create_subscription(Float32MultiArray, '/target/bbox', self.on_bbox, 10)
         self.pub = self.create_publisher(Float32MultiArray, '/target/estimate', 10)
+        self.declare_parameter('fy_scale', FY_SCALE)
+        self.declare_parameter('v_offset', V_OFFSET)
+        self.declare_parameter('base_z', BASE_Z)
+        self.fy_scale = float(self.get_parameter('fy_scale').value)
+        self.v_offset = float(self.get_parameter('v_offset').value)
+        self.base_z = float(self.get_parameter('base_z').value)
         self.roll = self.pitch_down = self.alt = None
         self.att_t = self.pos_t = None
         self.count = 0
-        self.get_logger().info('Distance estimator ready. Waiting for the detector and PX4...')
+        self.get_logger().info(f'Distance estimator ready (fy_scale={self.fy_scale}, v_offset={self.v_offset}, '
+                               f'base_z={self.base_z}). Waiting for the detector and PX4...')
 
     def age(self, t):
         return (self.get_clock().now() - t).nanoseconds / 1e9 if t is not None else 1e9
@@ -57,8 +70,9 @@ class DistanceEstimator(Node):
             self.publish([0.0] + [NAN] * 7)
             return
         cx, cy, h = d[1], d[2], d[4]
-        cam_h = camera_height(self.alt, self.roll, self.pitch_down)
-        g = ground_distance(cx, cy + h / 2, cam_h, self.roll, self.pitch_down, 0.0)
+        cam_h = camera_height(self.alt, self.roll, self.pitch_down, self.base_z)
+        g = ground_distance(cx, cy + h / 2, cam_h, self.roll, self.pitch_down, 0.0,
+                            self.fy_scale, self.v_offset)
         if g is None:                      # box bottom is above the horizon
             self.publish([0.0] + [NAN] * 7)
             return

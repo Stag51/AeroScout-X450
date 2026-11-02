@@ -20,16 +20,20 @@ def rot_rpy(roll, pitch, yaw):
             [-sp, cp * sr, cp * cr]]
 
 
-def ground_distance(u_n, v_bottom_n, cam_height, roll=0.0, pitch=0.0, yaw=0.0):
+def ground_distance(u_n, v_bottom_n, cam_height, roll=0.0, pitch=0.0, yaw=0.0,
+                    fy_scale=1.0, v_offset=0.0):
     """Where does the ray through the box-bottom pixel hit the ground?
 
     u_n, v_bottom_n : box bottom-centre pixel, normalised 0..1 (u = cx, v = cy + h/2)
     cam_height      : camera height above the ground, metres
     roll, pitch, yaw: drone attitude in radians (pitch positive nose-down)
+    fy_scale, v_offset: calibration. Vertical focal length is multiplied by fy_scale and the box
+                    bottom is moved by v_offset (fraction of image height). Defaults = no correction.
     Returns dict with range, ground, fwd, lat (heading frame, left positive) or None if the ray
     does not hit the ground (box bottom above the horizon).
     """
-    rb = (1.0, -(u_n - 0.5) * W / FX, -(v_bottom_n - 0.5) * H / FY)     # ray in body frame
+    rb = (1.0, -(u_n - 0.5) * W / FX,
+          -(v_bottom_n + v_offset - 0.5) * H / (FY * fy_scale))     # ray in body frame
     R = rot_rpy(roll, pitch, yaw)
     rw = [sum(R[i][j] * rb[j] for j in range(3)) for i in range(3)]
     if rw[2] >= -1e-6:
