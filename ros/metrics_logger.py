@@ -7,6 +7,7 @@ Every 0.1 s it writes one CSV row with:
   * where the person's feet SHOULD appear in the image (exp_u, exp_v, 0..1)
   * the latest YOLO box from /target/bbox and how old it is
 
+Optional: distance_estimator_node.py adds est_* columns (PX4-based estimate).
 Needs the pose bridge running:
   ros2 run ros_gz_bridge parameter_bridge \
      "/world/default/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"
@@ -30,12 +31,13 @@ CAM_OFFSET = (0.064, 0.0, 0.0225)        # camera_link in the drone body frame, 
 HFOV, W, H = 1.74, 1280, 960             # from PX4's mono_cam model
 FX = (W / 2) / math.tan(HFOV / 2)        # focal length in pixels (fy is the same)
 FY = FX
-N_POSES = 9                              # entries in dynamic_pose/info: 0 drone, 1 person, then links
+N_POSES = 9                              # entries seen in dynamic_pose/info: 0 drone, 1 person, then links
 
 FIELDS = ['t', 'drone_x', 'drone_y', 'drone_z', 'roll_deg', 'pitch_deg', 'yaw_deg',
           'cam_x', 'cam_y', 'cam_z', 'person_x', 'person_y', 'person_z',
           'true_range', 'true_ground', 'true_fwd', 'true_lat', 'exp_u', 'exp_v',
-          'found', 'cx', 'cy', 'w', 'h', 'conf', 'bbox_age']
+          'found', 'cx', 'cy', 'w', 'h', 'conf', 'bbox_age',
+          'est_valid', 'est_range', 'est_ground', 'est_fwd', 'est_lat', 'est_h', 'est_roll', 'est_pitch', 'est_age']
 
 
 def rot(q):
@@ -105,12 +107,15 @@ class Logger(Node):
         self.person = None      # position
         self.bbox = None
         self.bbox_t = None
+        self.est = None
+        self.est_t = None
         self.t0 = time.monotonic()
         self.rows = 0
         self.warned = False
 
         self.create_subscription(TFMessage, '/world/default/dynamic_pose/info', self.on_pose, 10)
         self.create_subscription(Float32MultiArray, '/target/bbox', self.on_bbox, 10)
+        self.create_subscription(Float32MultiArray, '/target/estimate', self.on_est, 10)
         self.create_timer(1.0 / float(self.get_parameter('rate').value), self.tick)
         self.get_logger().info(f'Logging to {self.path}')
 
@@ -131,6 +136,10 @@ class Logger(Node):
         self.bbox = list(msg.data)
         self.bbox_t = time.monotonic()
 
+    def on_est(self, msg):
+        self.est = list(msg.data)
+        self.est_t = time.monotonic()
+
     def tick(self):
         if self.drone is None or self.person is None:
             return
@@ -140,13 +149,16 @@ class Logger(Node):
         nan = float('nan')
         b = self.bbox if self.bbox and len(self.bbox) >= 6 else [nan] * 6
         age = time.monotonic() - self.bbox_t if self.bbox_t else nan
+        e = self.est if self.est and len(self.est) >= 8 else [nan] * 8
+        est_age = time.monotonic() - self.est_t if self.est_t else nan
         t = time.monotonic() - self.t0
         self.csv.writerow([f'{t:.3f}', *[f'{v:.4f}' for v in dp],
                            *[f'{math.degrees(a):.3f}' for a in (roll, pitch, yaw)],
                            *[f'{v:.4f}' for v in tr['cam']], *[f'{v:.4f}' for v in self.person],
                            f'{tr["range"]:.4f}', f'{tr["ground"]:.4f}', f'{tr["fwd"]:.4f}',
                            f'{tr["lat"]:.4f}', f'{tr["exp_u"]:.4f}', f'{tr["exp_v"]:.4f}',
-                           *[f'{v:.4f}' for v in b], f'{age:.3f}'])
+                           *[f'{v:.4f}' for v in b], f'{age:.3f}',
+                           *[f'{v:.4f}' for v in e], f'{est_age:.3f}'])
         self.file.flush()
         self.rows += 1
         if self.rows % 20 == 1:

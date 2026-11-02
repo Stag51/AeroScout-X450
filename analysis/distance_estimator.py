@@ -47,3 +47,23 @@ def ground_distance(u_n, v_bottom_n, cam_height, roll=0.0, pitch=0.0, yaw=0.0):
 def height_proxy(h_n, k):
     """The old method: distance from box height only. Distance = k / h (k fitted or guessed)."""
     return k / h_n if h_n > 1e-3 else float('nan')
+
+
+# ---- helpers for using PX4's own height and tilt (instead of Gazebo's truth) --------------------
+BASE_Z = 0.087                        # drone origin height above ground when sitting on the ground
+CAM_OFFSET = (0.064, 0.0, 0.0225)     # camera_link in the drone body frame, metres
+
+
+def px4_roll_pitch_down(q):
+    """PX4 attitude quaternion (w, x, y, z; FRD -> NED) -> (roll, pitch_down) in radians.
+    PX4 pitch is positive nose-UP, the estimator wants nose-DOWN, so the sign is flipped."""
+    w, x, y, z = q
+    roll = math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
+    pitch_ned = math.asin(max(-1.0, min(1.0, 2 * (w * y - z * x))))
+    return roll, -pitch_ned
+
+
+def camera_height(altitude, roll, pitch_down, base_z=BASE_Z):
+    """Camera height above the ground from PX4 altitude (-z_NED, zero where the drone started)."""
+    R = rot_rpy(roll, pitch_down, 0.0)
+    return base_z + altitude + sum(R[2][j] * CAM_OFFSET[j] for j in range(3))
